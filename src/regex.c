@@ -35,7 +35,6 @@ void regex_destroy(Regex *regex) {
     regex->new_states_len = 0;
     regex->matched = false;
 
-
     regex_collect_states(regex, regex->start);
 
     if (regex->new_states_len != regex->total_states) printf("Error: Not all states destroyed\n");
@@ -88,8 +87,9 @@ static void regex_add_state_to_new_states(Regex *regex, State *state) {
             return;
     }
 
-    for (int i = 0; i < regex->new_states_len; ++i) 
-        if (regex->new_states[i] == state) return;
+    if (state->id < regex->new_states_len && regex->new_states[state->id] == state) return;
+
+    state->id = regex->new_states_len;
     regex->new_states[regex->new_states_len++] = state;
 }
 
@@ -100,7 +100,6 @@ static void regex_swap_cur_and_new(Regex *regex) {
 
     regex->cur_states_len = regex->new_states_len;
     regex->new_states_len = 0;
-
 }
 
 static void regex_collect_states(Regex *regex, State *state) {
@@ -111,11 +110,10 @@ static void regex_collect_states(Regex *regex, State *state) {
 }
 
 static bool regex_collect_states_helper(Regex *regex, State *state) {
-    for (int i = 0; i < regex->new_states_len; ++i) 
-        if (regex->new_states[i] == state) return true;
+    if (state->id < regex->new_states_len && regex->new_states[state->id] == state) return true;
 
+    state->id = regex->new_states_len;
     regex->new_states[regex->new_states_len++] = state;
-
     return false;
 }
 

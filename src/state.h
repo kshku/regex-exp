@@ -13,6 +13,7 @@ struct State {
     int c;
     State *out;
     State *out1; // branch out
+    int id;
 };
 
 State *state_create(int c);
