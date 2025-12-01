@@ -10,8 +10,11 @@ int main(void) {
     regex_create(&regex, re);
 
     bool matched = false;
-    for (int i = 0; text[i] && !matched; ++i)
-        matched = regex_step(&regex, text[i]);
+    for (int i = 0; text[i] && !matched; ++i) {
+        regex_reset(&regex);
+        for (int j = i; text[j] && !matched; ++j)
+            matched = regex_step(&regex, text[j]);
+    }
 
     if (matched) printf("MATCHED!!!\n");
     else printf("NOT MATCHED!!!\n");

@@ -3,6 +3,7 @@
 #include "parser.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 
 static void regex_add_state_to_new_states(Regex *regex, State *state);
 
@@ -36,6 +37,8 @@ void regex_destroy(Regex *regex) {
 
 
     regex_collect_states(regex, regex->start);
+
+    if (regex->new_states_len != regex->total_states) printf("Error: Not all states destroyed\n");
 
     for (int i = 0; i < regex->new_states_len; ++i) state_destroy(regex->new_states[i]);
 
