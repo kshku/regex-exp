@@ -5,16 +5,43 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+/**
+ * @brief Add given state to set of new states.
+ *
+ * @param regex Pointer to regex state
+ * @param state Pointer to state to add
+ */
 static void regex_add_state_to_new_states(Regex *regex, State *state);
 
+/**
+ * @brief Swap the current states set and new states set.
+ *
+ * @param regex Poniter to regex state
+ */
 static void regex_swap_cur_and_new(Regex *regex);
 
+/**
+ * @brief Collect all the states in the nfa in the new set.
+ *
+ * @param regex Pointer to the regex state
+ * @param state Poniter to the starting state
+ */
 static void regex_collect_states(Regex *regex, State *state);
 
+/**
+ * @brief Helper function to collect all states in the nfa in the new set.
+ *
+ * @param regex Poniter to regex state
+ * @param state State to add to the new states set
+ *
+ * @return true if the given state was already in the new states set.
+ */
 static bool regex_collect_states_helper(Regex *regex, State *state);
 
-bool regex_create(Regex *regex, const char *re) {
+void regex_create(Regex *regex, const char *re) {
     *regex = (Regex){0};
+
+    // Parse (compile) the regex and generate the nfa.
     Parser parser;
     parser_create(&parser, re);
 
@@ -23,6 +50,7 @@ bool regex_create(Regex *regex, const char *re) {
 
     parser_destroy(&parser);
 
+    // At max automata might be in all the states nfa.
     regex->cur_states = (State **)malloc(sizeof(State *) * regex->total_states);
     regex->new_states = (State **)malloc(sizeof(State *) * regex->total_states);
 
@@ -31,6 +59,7 @@ bool regex_create(Regex *regex, const char *re) {
 
 
 void regex_destroy(Regex *regex) {
+    // Collect and destroy all states
     regex->cur_states_len = 0;
     regex->new_states_len = 0;
     regex->matched = false;
