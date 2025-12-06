@@ -102,6 +102,13 @@ static void parser_parse_and_generate_character_class(Parser *parser);
  */
 static void parser_add_input_range_to_character_class(Parser *parser, State *merge, Range range);
 
+/**
+ * @brief Function to parse from wherever index is till alternation or NULL character.
+ *
+ * @param parser Pointer to parser state.
+ */
+static State *parser_parse_alternation(Parser *parser);
+
 void parser_create(Parser *parser, const char *src) {
     *parser = (Parser){0};
     parser->src = src;
@@ -113,6 +120,29 @@ void parser_destroy(Parser *parser) {
 
 void parser_reset(Parser *parser) {
     parser->index = 0;
+}
+
+State *parser_parse(Parser *parser) {
+    if (!parser->src[parser->index]) QUIT_WITH_FATAL_MSG("Empty regex?"); // Maybe forgot to reset?
+
+    parser->total_states = 0;
+    parser->match = state_create(MATCH);
+    parser->total_states++;
+
+    parser->head = parser_parse_alternation(parser);
+
+    while (parser->src[parser->index] == '|') {
+        parser->index++;
+        if (!parser->src[parser->index])
+            QUIT_WITH_FATAL_MSG("Expected alternative expression after '|'");
+        State *branch = state_create(BRANCH);
+        parser->total_states++;
+        branch->out = parser_parse_alternation(parser);
+        branch->out1 = parser->head;
+        parser->head = branch;
+    }
+
+    return parser->head;
 }
 
 static int parser_parse_character(Parser *parser) {
@@ -287,12 +317,17 @@ static bool parser_get_next_token(Parser *parser, Token *token) {
     // If parsing is completed, return false
     if (!parser->src[parser->index]) return false;
 
+    // Say this is the end of this part of alternation
+    if (parser->src[parser->index] == '|') return false;
+
+    /*
     if (parser->index == 0 && parser->src[parser->index] == '^') {
         token->input = LINE_START;
         token->repetition = REPETITION_TYPE_ONCE;
         parser->index++;
         return true;
-    } else if (!parser->src[parser->index + 1] && parser->src[parser->index] == '$') {
+    } else*/
+    if ((!parser->src[parser->index + 1] || parser->src[parser->index + 1] == '|') && parser->src[parser->index] == '$') {
         token->input = LINE_END;
         token->repetition = REPETITION_TYPE_ONCE;
         parser->index++;
@@ -303,6 +338,9 @@ static bool parser_get_next_token(Parser *parser, Token *token) {
         parser->index++;
         parser_parse_and_generate_character_class(parser);
         if (!parser->src[parser->index]) return false;
+    }
+
+    if (parser->src[parser->index] == '(') {
     }
 
     token->input = parser_parse_character(parser);
@@ -381,19 +419,20 @@ static void parser_add_repetition_zero_or_one(Parser *parser, int input) {
     parser->total_states += 3;
 }
 
-State *parser_parse(Parser *parser) {
+static State *parser_parse_alternation(Parser *parser) {
     // Create a dummy fragment
     State *head = state_create(EPSILON);
-    parser->total_states = 0;
     // Set the dummy fragment's output to next fragment
     parser->cur = &head->out;
 
-    Token token;
-    if (parser_get_next_token(parser, &token) && token.input != LINE_START) {
+    if (parser->src[parser->index] == '|') QUIT_WITH_FATAL_MSG("Expected alternative expression before '|'");
+
+    if (parser->src[parser->index] != '^') {
         // Create a infinity loop matching any character in the beginning so that
         // nfa does not die when first character doesn't match
         State *branch = state_create(BRANCH);
         State *any_char = state_create(ANY_CHAR);
+        parser->total_states += 2;
 
         // branch's one out goes to any_char
         branch->out1 = any_char;
@@ -404,14 +443,12 @@ State *parser_parse(Parser *parser) {
         *parser->cur = branch;
         // branch's out goes to next fragment
         parser->cur = &branch->out;
-
-        parser->total_states += 2;
-
-        // Make the parser read from start again
-        parser_reset(parser);
+    } else {
+        parser->index++;
     }
 
-    while (parser_get_next_token(parser, &token) && token.input != LINE_END) {
+    Token token;
+    while (parser_get_next_token(parser, &token)) {
         switch (token.repetition) {
             case REPETITION_TYPE_ONCE:
                 parser_add_repetition_once(parser, token.input);
@@ -429,15 +466,9 @@ State *parser_parse(Parser *parser) {
     }
 
     // Add a state with match to indicate accepting state
-    State *match = state_create(MATCH);
-    *parser->cur = match;
-    parser->cur = &match->out;
-    parser->total_states++;
+    *parser->cur = parser->match;
+    parser->cur = NULL;
 
-    if (token.input == LINE_END) {
-        *parser->cur = state_create(DEAD);
-        parser->total_states++;
-    }
 
     // Discard the dummy state
     State *temp = head;

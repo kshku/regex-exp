@@ -34,8 +34,8 @@ Optional(?) -> Zero or one repetition of previous character
 Anchors(\^, \$) -> Matches beginning(\^) or end(\$) of the line  
 Character classes([]) -> Matches any of the character or character range specified  
 Backslash(\\) -> Escape character  
-### TODO
 Alternation(|) -> Matches either the expression on left or expression on right  
+### TODO
 Grouping(()) -> Groups multiple expressions together to apply operators to the entire group  
 
 ## Examples
@@ -62,4 +62,14 @@ build/regexer "somebody saw nobody" "s[^\-A]w"
 build/regexer "somebody sa]w nobody" "s[]a]+w"
 build/regexer "somebody sa]-w nobody" "s[]a-]+w"
 build/regexer "somebody sa]-w nobody" "s[-\]a]+w"
+build/regexer "somebody saw nobody" "nobody|somebody"
+build/regexer "somebody saw nobody" "^somebody|^nobody$"
+build/regexer "somebody saw nobody" "^somebody$|nobody$"
+build/regexer "somebody saw nobody" "^somebody$|^nobody$"
+build/regexer "somebody saw nobody" "somebody$|^nobody$"
+build/regexer "somebody saw nobody" "somebody|^nobody$"
+build/regexer "somebody saw nobody" "somebody|^nobody"
+build/regexer "somebody saw nobody" "^somebody|^nobody"
+build/regexer "somebody saw nobody" "somebody$|^nobody"
+build/regexer "somebody saw nobody" "somebody$|^nobody|saw"
 ```

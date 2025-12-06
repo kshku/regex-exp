@@ -21,19 +21,7 @@ static const char *colors[] = {
 };
 
 #ifdef OS_WINDOWS
-static bool enableVTProcessing(DWORD handle_type) {
-    HANDLE handle = GetStdHandle(handle_type);
-    if (handle == INVALID_HANDLE_VALUE) return false;
-
-    DWORD modes = 0;
-    if (!GetConsoleMode(handle, &modes)) return false;
-
-    modes |= ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING
-           | DISABLE_NEWLINE_AUTO_RETURN;
-    if (!SetConsoleMode(handle, modes)) return false;
-
-    return true;
-}
+static bool enableVTProcessing(DWORD handle_type);
 #endif
 
 void logger_log(LogLevel level, const char *restrict msg, ...) {
@@ -89,3 +77,20 @@ void logger_log(LogLevel level, const char *restrict msg, ...) {
     // Make sure to flush the message if it is error
     if (error) fflush(NULL);
 }
+
+#ifdef OS_WINDOWS
+static bool enableVTProcessing(DWORD handle_type) {
+    HANDLE handle = GetStdHandle(handle_type);
+    if (handle == INVALID_HANDLE_VALUE) return false;
+
+    DWORD modes = 0;
+    if (!GetConsoleMode(handle, &modes)) return false;
+
+    modes |= ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING
+           | DISABLE_NEWLINE_AUTO_RETURN;
+    if (!SetConsoleMode(handle, modes)) return false;
+
+    return true;
+}
+#endif
+

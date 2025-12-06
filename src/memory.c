@@ -68,6 +68,22 @@ void *memory_reallocate(void *ptr, size_t new_size) {
     return ptr;
 }
 
+void print_memory_usage(void) {
+    LOG_INFO("Allocation count: %lu", allocation_count);
+
+    char ext[4];
+    double size;
+
+    size = format_ext_and_get_size(allocated_bytes, ext);
+    LOG_INFO("Allocation size: %.4lf %s", size, ext);
+
+    size = format_ext_and_get_size(HEADER_SIZE * allocation_count, ext);
+    LOG_INFO("Memory used for the header: %.4lf %s", size, ext);
+
+    size = format_ext_and_get_size(allocated_bytes + (HEADER_SIZE * allocation_count), ext);
+    LOG_INFO("Total memory used: %.4lf %s", size, ext);
+}
+
 static double format_ext_and_get_size(size_t bytes, char *ext) {
     double size = bytes;
     ext[0] = 'X';
@@ -90,21 +106,5 @@ static double format_ext_and_get_size(size_t bytes, char *ext) {
     }
 
     return size;
-}
-
-void print_memory_usage(void) {
-    LOG_INFO("Allocation count: %lu", allocation_count);
-
-    char ext[4];
-    double size;
-
-    size = format_ext_and_get_size(allocated_bytes, ext);
-    LOG_INFO("Allocation size: %.4lf %s", size, ext);
-
-    size = format_ext_and_get_size(HEADER_SIZE * allocation_count, ext);
-    LOG_INFO("Memory used for the header: %.4lf %s", size, ext);
-
-    size = format_ext_and_get_size(allocated_bytes + (HEADER_SIZE * allocation_count), ext);
-    LOG_INFO("Total memory used: %.4lf %s", size, ext);
 }
 

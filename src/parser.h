@@ -9,6 +9,8 @@
 typedef struct Parser {
     const char *src; /**< Pointer to src (the regex) */
     int index; /**< The index in src parser is at currently */
+    State *head;
+    State *match;
     State **cur; /**< Internal pointer used by parser to generate the NFA */
     int total_states; /**< Total number of states allocated */
 } Parser;

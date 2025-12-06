@@ -66,7 +66,7 @@ void regex_destroy(Regex *regex) {
 
     regex_collect_states(regex, regex->start);
 
-    if (regex->new_states_len != regex->total_states) QUIT_WITH_FATAL_MSG("Not all states destroyed");
+    if (regex->new_states_len != regex->total_states) LOG_ERROR("Not all states destroyed");
 
     for (int i = 0; i < regex->new_states_len; ++i) state_destroy(regex->new_states[i]);
 
@@ -78,9 +78,7 @@ bool regex_step(Regex *regex, char input) {
     for (int i = 0; i < regex->cur_states_len; ++i) {
         switch (regex->cur_states[i]->c) {
             case MATCH:
-                regex->cur_states[i]->out
-                    ? regex_add_state_to_new_states(regex, regex->cur_states[i]->out)
-                    : regex_add_state_to_new_states(regex, regex->cur_states[i]);
+                regex_add_state_to_new_states(regex, regex->cur_states[i]);
                 break;
             default:
                 if (input != regex->cur_states[i]->c) break;
@@ -114,7 +112,10 @@ void regex_reset(Regex *regex) {
 bool regex_pattern_in_line(Regex *regex, const char *line) {
     regex_reset(regex);
     bool matched = false;
-    for (int i = 0; line[i]; ++i) matched = regex_step(regex, line[i]);
+    int i;
+    for (i = 0; line[i]; ++i) matched = regex_step(regex, line[i]);
+    // Add new line at the end of each line, if they aren't there
+    if (line[i - 1] != '\n') matched = regex_step(regex, '\n');
     return matched;
 }
 
