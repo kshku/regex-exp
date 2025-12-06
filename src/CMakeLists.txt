@@ -11,6 +11,8 @@ set(SRCS
     logger.c
     memory.h
     memory.c
+    range.h
+    range.c
 )
 
 target_sources(regexer PRIVATE ${SRCS})

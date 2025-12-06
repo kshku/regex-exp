@@ -1,6 +1,8 @@
 #include "parser.h"
 
 #include "utils.h"
+#include "range.h"
+#include "memory.h"
 
 #include <stdbool.h>
 
@@ -84,6 +86,22 @@ static void parser_add_repetition_one_or_more(Parser *parser, int input);
  */
 static void parser_add_repetition_zero_or_one(Parser *parser, int input);
 
+/**
+ * @brief Parse and generate nfa for character class/set.
+ *
+ * @param parser Pointer to the parser state
+ */
+static void parser_parse_and_generate_character_class(Parser *parser);
+
+/**
+ * @brief Function to add the given input character as class character.
+ *
+ * @param parser Pointer to parser state
+ * @param merge Pointer to the merging state
+ * @param range The range
+ */
+static void parser_add_input_range_to_character_class(Parser *parser, State *merge, Range range);
+
 void parser_create(Parser *parser, const char *src) {
     *parser = (Parser){0};
     parser->src = src;
@@ -139,6 +157,132 @@ static RepetitionType parser_parse_repetition(Parser *parser) {
     return repetition;
 }
 
+static void parser_add_input_range_to_character_class(Parser *parser, State *merge, Range range) {
+    State *branch = state_create(BRANCH);
+    State *new = state_create(RANGE);
+    new->range = range;
+
+    branch->out1 = new;
+    new->out = merge;
+
+    *parser->cur = branch;
+    parser->cur = &branch->out;
+
+    parser->total_states += 2;
+}
+
+static void parser_parse_and_generate_character_class(Parser *parser) {
+    if (!parser->src[parser->index]) QUIT_WITH_FATAL_MSG("Expected characters in character class");
+
+    bool negate = parser->src[parser->index] == '^';
+    if (negate) parser->index++;
+
+    State *start = state_create(EPSILON);
+    State *merge = state_create(EPSILON);
+    parser->total_states += 2;
+
+    Range *range_list = NULL;
+    int range_list_len = 0;
+    if (negate) range_list = add_range_to_range_list((Range){0, LITERAL_CHAR_LAST}, range_list, &range_list_len);
+
+    State **previous_frag_out = parser->cur;
+    parser->cur = &start->out;
+
+    if (!parser->src[parser->index]) QUIT_WITH_FATAL_MSG("Expected characters in character class");
+
+    if (parser->src[parser->index] == ']') {
+        if (negate) range_list = remove_range_from_range_list((Range){']', ']'}, range_list, &range_list_len);
+        else range_list = add_range_to_range_list((Range){']', ']'}, range_list, &range_list_len);
+        parser->index++;
+    }
+
+    while (parser->src[parser->index] && parser->src[parser->index] != ']') {
+        // Parsing time!
+        switch(parser->src[parser->index]) {
+            case '\\':
+                parser->index++;
+                if (!parser->src[parser->index]) QUIT_WITH_FATAL_MSG("Expected another character after '\\'");
+                /* fallthrough */
+            default:
+                if (parser->src[parser->index + 1] && parser->src[parser->index + 2]) {
+                    if (parser->src[parser->index + 1] == '-' && parser->src[parser->index + 2] != ']') {
+                        int end_range_index = parser->index + 2;
+                        if (parser->src[end_range_index] == '\\') {
+                            if (!parser->src[parser->index + 3]) QUIT_WITH_FATAL_MSG("Expected another character after '\\'");
+                            end_range_index++;
+                        }
+
+                        if (parser->src[parser->index] >= parser->src[end_range_index])
+                            QUIT_WITH_FATAL_MSG("Invalid range '%c-%c' in the character class", parser->src[parser->index], parser->src[end_range_index]);
+
+                        if (negate) range_list = remove_range_from_range_list((Range){parser->src[parser->index], parser->src[end_range_index]}, range_list, &range_list_len);
+                        else range_list = add_range_to_range_list((Range){parser->src[parser->index], parser->src[end_range_index]}, range_list, &range_list_len);
+
+                        parser->index = end_range_index;
+                        break;
+                    }
+                }
+                if (negate) range_list = remove_range_from_range_list((Range){parser->src[parser->index], parser->src[parser->index]}, range_list, &range_list_len);
+                else range_list = add_range_to_range_list((Range){parser->src[parser->index], parser->src[parser->index]}, range_list, &range_list_len);
+                break;
+        }
+        parser->index++;
+    }
+
+    // Now time to add all the ranges into nfa!
+    for (int i = 0; i < range_list_len; ++i)
+        parser_add_input_range_to_character_class(parser, merge, range_list[i]);
+
+    if (parser->src[parser->index] != ']')
+        QUIT_WITH_FATAL_MSG("The character class was not closed");
+
+    parser->index++;
+
+    *parser->cur = state_create(DEAD);
+    parser->total_states++;
+
+    memory_free(range_list);
+
+    // Handle the repetitions of the character class
+    RepetitionType repetition = parser_parse_repetition(parser);
+    switch (repetition) {
+        case REPETITION_TYPE_ONCE:
+            *previous_frag_out = start;
+            parser->cur = &merge->out;
+            break;
+        case REPETITION_TYPE_ZERO_OR_MORE:
+            {
+                State *branch = state_create(BRANCH);
+                parser->total_states++;
+                branch->out1 = start;
+                merge->out = branch;
+
+                *previous_frag_out = branch;
+                parser->cur = &branch->out;
+            } break;
+        case REPETITION_TYPE_ONE_OR_MORE:
+            {
+                State *branch = state_create(BRANCH);
+                parser->total_states++;
+
+                merge->out = branch;
+                branch->out1 = start;
+
+                *previous_frag_out = start;
+                parser->cur = &branch->out;
+            } break;
+        case REPETITION_TYPE_ZERO_OR_ONE:
+            {
+                state_destroy(*parser->cur);
+                parser->total_states--;
+                *parser->cur = merge;
+
+                *previous_frag_out = start;
+                parser->cur = &merge->out;
+            } break;
+    }
+}
+
 static bool parser_get_next_token(Parser *parser, Token *token) {
     // If parsing is completed, return false
     if (!parser->src[parser->index]) return false;
@@ -153,6 +297,12 @@ static bool parser_get_next_token(Parser *parser, Token *token) {
         token->repetition = REPETITION_TYPE_ONCE;
         parser->index++;
         return true;
+    }
+
+    if (parser->src[parser->index] == '[') {
+        parser->index++;
+        parser_parse_and_generate_character_class(parser);
+        if (!parser->src[parser->index]) return false;
     }
 
     token->input = parser_parse_character(parser);

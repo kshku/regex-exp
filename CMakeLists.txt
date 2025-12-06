@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15...3.31)
 
-project(regex_exp VERSION 0.0.2 DESCRIPTION "Building a regex engine for fun and learn" LANGUAGES C)
+project(regex_exp VERSION 0.0.3 DESCRIPTION "Building a regex engine for fun and learn" LANGUAGES C)
 
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD_REQUIRED ON)

@@ -14,3 +14,7 @@
     exit(EXIT_FAILURE);               \
     } while (0)
 
+/**
+ * @brief Mark the execution should not reach here.
+ */
+#define SHOULD_NOT_REACH_HERE QUIT_WITH_FATAL_MSG("The execution should have not reached here. This bug should be reported details for reproducing the bug!");

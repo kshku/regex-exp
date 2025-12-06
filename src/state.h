@@ -1,17 +1,21 @@
 #pragma once
 
+#include "range.h"
+
 /**
  * @enum Character
  * @brief Enum to represent special characters.
  */
 typedef enum Character {
+    LITERAL_CHAR_LAST = 255,
     LINE_END = 10, /**< Match end of line */
-    ANY_CHAR = 256, /**< Match any character */
+    ANY_CHAR = LITERAL_CHAR_LAST + 1, /**< Match any character */
     MATCH, /**< Pattern matched (accepting state) */
     BRANCH, /**< Without consuming character go in both outs */
     EPSILON, /**< Go without consuming character */
     LINE_START, /**< Match start of line */
     DEAD, /**< Dead state */
+    RANGE, /**< Range of characters */
 } Character;
 
 typedef struct State State;
@@ -24,6 +28,7 @@ struct State {
     int c; /**< The character required for transition. */
     State *out; /**< out edge 1 (used always). */
     State *out1; /**< out edge 2 (used when branching is required). */
+    Range range; /**< range of the characters incase c is RANGE */
     int id; /**< The index of the state node in the set of states nfa can exists. */
 };
 

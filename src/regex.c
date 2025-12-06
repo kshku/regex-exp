@@ -88,6 +88,10 @@ bool regex_step(Regex *regex, char input) {
             case ANY_CHAR:
                 regex_add_state_to_new_states(regex, regex->cur_states[i]->out);
                 break;
+            case RANGE:
+                if (regex->cur_states[i]->range.start <= input && input <= regex->cur_states[i]->range.end)
+                    regex_add_state_to_new_states(regex, regex->cur_states[i]->out);
+                break;
         }
     }
 

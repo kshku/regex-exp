@@ -33,6 +33,7 @@ build/regexer "text" "regex-pattern"
 '\\' -> Escape character  
 '^' -> Matches beginning of line  
 '$' -> Matches end of line  
+'[]' -> Character class
 
 ## Examples
 ```sh
@@ -45,4 +46,17 @@ build/regexer "somebody saw nobody" "^some"
 build/regexer "somebody saw nobody" "^saw"
 build/regexer "somebody saw nobody" "y$"
 build/regexer "somebody saw nobody" "^some.*y$"
+build/regexer "somebody saeiouw nobody" "s[aeiou]*w"
+build/regexer "somebody saeiouw nobody" "s[aeiou]w"
+build/regexer "somebody saeiouw nobody" "s[aeiou]+w"
+build/regexer "somebody saw nobody" "s[^A-Z]w"
+build/regexer "somebody saw nobody" "s[^A-Za]w"
+build/regexer "somebody saw nobody" "s[^A-Z]w"
+build/regexer "somebody saw nobody" "s[^a-z]w"
+build/regexer "somebody saw nobody" "s[^a-A]w"
+build/regexer "somebody saw nobody" "s[^a\-A]w"
+build/regexer "somebody saw nobody" "s[^\-A]w"
+build/regexer "somebody sa]w nobody" "s[]a]+w"
+build/regexer "somebody sa]-w nobody" "s[]a-]+w"
+build/regexer "somebody sa]-w nobody" "s[-\]a]+w"
 ```

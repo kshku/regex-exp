@@ -1,3 +1,4 @@
+// gcc -g -std=c17 test.c logger.c range.c memory.c
 #include <stdio.h>
 
 #include "src/regex.h"

@@ -1,6 +1,8 @@
 #include "memory.h"
 
 #include "logger.h"
+#include "utils.h"
+
 #include <stdlib.h>
 
 /**
@@ -15,15 +17,25 @@
 static size_t allocated_bytes = 0;
 static size_t allocation_count = 0;
 
+/**
+ * @brief Format the ext (of length 4) and return the size according to the extension.
+ *
+ * @param bytes Number of bytes
+ * @param ext Pointer to string of size 4
+ *
+ * @return Size according to the extension.
+ */
+static double format_ext_and_get_size(size_t bytes, char *ext);
+
 void *memory_allocate(size_t size) {
     void *ptr = malloc(size + HEADER_SIZE);
 
-    if (ptr) {
-        allocation_count++;
-        allocated_bytes += size;
-        *((size_t *)ptr) = size;
-        ptr = ((char *)ptr) + HEADER_SIZE;
-    }
+    if (!ptr) QUIT_WITH_FATAL_MSG("Failed to allocate memory");
+
+    allocation_count++;
+    allocated_bytes += size;
+    *((size_t *)ptr) = size;
+    ptr = ((char *)ptr) + HEADER_SIZE;
 
     return ptr;
 }
@@ -33,6 +45,27 @@ void memory_free(void *ptr) {
     allocation_count--;
     allocated_bytes -= *((size_t *)ptr);
     free(ptr);
+}
+
+void *memory_reallocate(void *ptr, size_t new_size) {
+    if (!ptr && !new_size) return NULL;
+    if (!ptr) return memory_allocate(new_size);
+    if (!new_size) {
+        memory_free(ptr);
+        return NULL;
+    }
+
+    ptr = ((char *)ptr) - HEADER_SIZE;
+    ptr = realloc(ptr, new_size + HEADER_SIZE);
+
+    if (!ptr) QUIT_WITH_FATAL_MSG("Failed to reallocate memory");
+
+    allocated_bytes += new_size;
+    allocated_bytes -= *((size_t *)ptr);
+    *((size_t *)ptr) = new_size;
+    ptr = ((char *)ptr) + HEADER_SIZE;
+
+    return ptr;
 }
 
 static double format_ext_and_get_size(size_t bytes, char *ext) {
