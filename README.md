@@ -26,14 +26,17 @@ build/regexer "text" "regex-pattern"
 ```
 
 ## Supported regex meta characters
-'*' -> Zero or more repetition of previous character  
-'+' -> One or more repetition of previous character  
-'?' -> Zero or one repetition of previous character  
-'.' -> Matches any single character  
-'\\' -> Escape character  
-'^' -> Matches beginning of line  
-'$' -> Matches end of line  
-'[]' -> Character class
+Literal characters  
+Dot(.) -> Matches any single character  
+Kleene star(*) -> Zero or more repetition of previous character  
+Plus(+) -> One or more repetition of previous character  
+Optional(?) -> Zero or one repetition of previous character  
+Anchors(\^, \$) -> Matches beginning(\^) or end(\$) of the line  
+Character classes([]) -> Matches any of the character or character range specified  
+Backslash(\\) -> Escape character  
+### TODO
+Alternation(|) -> Matches either the expression on left or expression on right  
+Grouping(()) -> Groups multiple expressions together to apply operators to the entire group  
 
 ## Examples
 ```sh
