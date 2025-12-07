@@ -109,6 +109,13 @@ static void parser_add_input_range_to_character_class(Parser *parser, State *mer
  */
 static State *parser_parse_alternation(Parser *parser);
 
+/**
+ * @brief Parse and generate character group.
+ *
+ * @param parser Pointer to parser state
+ */
+static void parser_parse_and_generate_group(Parser *parser);
+
 void parser_create(Parser *parser, const char *src) {
     *parser = (Parser){0};
     parser->src = src;
@@ -313,6 +320,101 @@ static void parser_parse_and_generate_character_class(Parser *parser) {
     }
 }
 
+static void parser_parse_and_generate_group(Parser *parser) {
+    if (!parser->src[parser->index] || parser->src[parser->index] == ')') QUIT_WITH_FATAL_MSG("Expected characters in group");
+
+    State *start = state_create(EPSILON);
+    State *end = state_create(EPSILON);
+    parser->total_states += 2;
+
+    State **previous_frag_out = parser->cur;
+    parser->cur = &start->out;
+
+    Token token;
+do_parsing:
+    while (parser_get_next_token(parser, &token) && token.input != ')') {
+        switch (token.repetition) {
+            case REPETITION_TYPE_ONCE:
+                parser_add_repetition_once(parser, token.input);
+                break;
+            case REPETITION_TYPE_ZERO_OR_MORE:
+                parser_add_repetition_zero_or_more(parser, token.input);
+                break;
+            case REPETITION_TYPE_ONE_OR_MORE:
+                parser_add_repetition_one_or_more(parser, token.input);
+                break;
+            case REPETITION_TYPE_ZERO_OR_ONE:
+                parser_add_repetition_zero_or_one(parser, token.input);
+                break;
+        }
+    }
+
+    *parser->cur = end;
+
+    if (parser->src[parser->index] == '|') {
+        parser->index++;
+        if (!parser->src[parser->index])
+            QUIT_WITH_FATAL_MSG("Expected alternative expression after '|'");
+        State *branch = state_create(BRANCH);
+        parser->total_states++;
+
+        branch->out1 = start->out;
+        start->out = branch;
+
+        parser->cur = &branch->out;
+        goto do_parsing;
+    }
+
+    if (token.input != ')') QUIT_WITH_FATAL_MSG("Expected termination of the group");
+
+    switch (token.repetition) {
+        case REPETITION_TYPE_ONCE:
+            *previous_frag_out = start;
+            parser->cur = &end->out;
+            break;
+        case REPETITION_TYPE_ZERO_OR_MORE:
+            {
+                State *branch = state_create(BRANCH);
+                parser->total_states++;
+
+                *previous_frag_out = branch;
+
+                branch->out1 = start;
+                end->out = branch;
+
+                parser->cur = &branch->out;
+            } break;
+        case REPETITION_TYPE_ONE_OR_MORE:
+            {
+                State *branch = state_create(BRANCH);
+                parser->total_states++;
+
+                *previous_frag_out = start;
+
+                end->out = branch;
+
+                branch->out1 = start;
+
+                parser->cur = &branch->out;
+            } break;
+        case REPETITION_TYPE_ZERO_OR_ONE:
+            {
+                State *branch = state_create(BRANCH);
+                State *merge = state_create(EPSILON);
+                parser->total_states += 2;
+
+                branch->out = merge;
+                branch->out1 = start;
+
+                end->out = merge;
+
+                parser->cur = &merge->out;
+
+                *previous_frag_out = branch;
+            } break;
+    }
+}
+
 static bool parser_get_next_token(Parser *parser, Token *token) {
     // If parsing is completed, return false
     if (!parser->src[parser->index]) return false;
@@ -320,13 +422,6 @@ static bool parser_get_next_token(Parser *parser, Token *token) {
     // Say this is the end of this part of alternation
     if (parser->src[parser->index] == '|') return false;
 
-    /*
-    if (parser->index == 0 && parser->src[parser->index] == '^') {
-        token->input = LINE_START;
-        token->repetition = REPETITION_TYPE_ONCE;
-        parser->index++;
-        return true;
-    } else*/
     if ((!parser->src[parser->index + 1] || parser->src[parser->index + 1] == '|') && parser->src[parser->index] == '$') {
         token->input = LINE_END;
         token->repetition = REPETITION_TYPE_ONCE;
@@ -341,6 +436,9 @@ static bool parser_get_next_token(Parser *parser, Token *token) {
     }
 
     if (parser->src[parser->index] == '(') {
+        parser->index++;
+        parser_parse_and_generate_group(parser);
+        if (!parser->src[parser->index]) return false;
     }
 
     token->input = parser_parse_character(parser);
@@ -421,9 +519,9 @@ static void parser_add_repetition_zero_or_one(Parser *parser, int input) {
 
 static State *parser_parse_alternation(Parser *parser) {
     // Create a dummy fragment
-    State *head = state_create(EPSILON);
+    State *head = NULL;
     // Set the dummy fragment's output to next fragment
-    parser->cur = &head->out;
+    parser->cur = &head;
 
     if (parser->src[parser->index] == '|') QUIT_WITH_FATAL_MSG("Expected alternative expression before '|'");
 
@@ -468,12 +566,6 @@ static State *parser_parse_alternation(Parser *parser) {
     // Add a state with match to indicate accepting state
     *parser->cur = parser->match;
     parser->cur = NULL;
-
-
-    // Discard the dummy state
-    State *temp = head;
-    head = head->out;
-    state_destroy(temp);
 
     return head;
 }

@@ -35,10 +35,16 @@ Anchors(\^, \$) -> Matches beginning(\^) or end(\$) of the line
 Character classes([]) -> Matches any of the character or character range specified  
 Backslash(\\) -> Escape character  
 Alternation(|) -> Matches either the expression on left or expression on right  
-### TODO
 Grouping(()) -> Groups multiple expressions together to apply operators to the entire group  
 
 ## Examples
+The `run_readme_examples.sh` script reads this readme and tries to run all the lines that start with `build/regexer`.
+It can be used to to run all these following examples.  
+Just run
+```sh
+./run_readme_examples.sh
+```
+to run all these examples
 ```sh
 build/regexer "somebody saw nobody" "saw"
 build/regexer "somebody saw nobody" "sa?w"
@@ -72,4 +78,15 @@ build/regexer "somebody saw nobody" "somebody|^nobody"
 build/regexer "somebody saw nobody" "^somebody|^nobody"
 build/regexer "somebody saw nobody" "somebody$|^nobody"
 build/regexer "somebody saw nobody" "somebody$|^nobody|saw"
+build/regexer "somebody saw nobody" "s(a|b)w"
+build/regexer "somebody sabw nobody" "s(a|b)w"
+build/regexer "somebody sabw nobody" "s(a|b)+w"
+build/regexer "somebody scw nobody" "s(a|b)+w"
+build/regexer "somebody scw nobody" "s(a|b|c)+w"
+build/regexer "somebody scw nobody" "s(a|b|c)w"
+build/regexer "somebody saw nobody" "s()w"
+build/regexer "somebody saw nobody" "s(b|c)w"
+build/regexer "somebody sabbbaaaaabw nobody" "s(a*b)+w"
+build/regexer "somebody sabbbaaaaabw nobody" "s((a)*b)+w"
+build/regexer "somebody sacbbbacacacacacbw nobody" "s((ac)*b)+w"
 ```
